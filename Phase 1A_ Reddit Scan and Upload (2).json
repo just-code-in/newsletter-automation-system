@@ -1,0 +1,1499 @@
+{
+  "name": "Phase 1A: Reddit Scan and Upload",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6a082ec0-16b7-4d5b-832d-2609a06fae15",
+              "name": "title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "6838c8ba-c498-49f5-bb97-bee33f02dd20",
+              "name": "url",
+              "value": "={{ $json.url_overridden_by_dest || $json.url || ('https://www.reddit.com' + ($json.permalink || '')) }}\n",
+              "type": "string"
+            },
+            {
+              "id": "13967cc2-74e2-445f-b88f-f15405cd89d8",
+              "name": "authors",
+              "value": "={{ $json.author || $json.author_fullname || '' }}\n",
+              "type": "string"
+            },
+            {
+              "id": "a33938bc-1743-4e67-bdaf-c4c1d5bc3ce0",
+              "name": "date",
+              "value": "={{ ($json.created_utc ?? $json.created) ? new Date(($json.created_utc ?? $json.created) * 1000).toISOString() : '' }}\n",
+              "type": "string"
+            },
+            {
+              "id": "7edee0aa-3a35-41bf-b616-85246fed3436",
+              "name": "publishedTimestamp",
+              "value": "={{ ($json.created_utc ?? $json.created) ? new Date(($json.created_utc ?? $json.created) * 1000).toISOString() : '' }}\n",
+              "type": "string"
+            },
+            {
+              "id": "a68bb301-94e1-414d-96f8-09f6453b45c1",
+              "name": "sourceName",
+              "value": "={{ $json.subreddit_name_prefixed || ($json.subreddit ? 'r/' + $json.subreddit : 'reddit') }}\n",
+              "type": "string"
+            },
+            {
+              "id": "00b19e33-754f-4347-a30a-bb33b3740919",
+              "name": "feedType",
+              "value": "={{ 'reddit' }}\n",
+              "type": "string"
+            },
+            {
+              "id": "24e1b6dc-81e2-4964-a56c-36ceccd9e1f2",
+              "name": "feedUrl",
+              "value": "={{ 'https://www.reddit.com' + ($json.permalink || '') }}\n",
+              "type": "string"
+            },
+            {
+              "id": "b287462d-3fad-46a2-bc42-5aa98aa8bde3",
+              "name": "uploadFileName",
+              "value": "={{ \n  (\n    new Date(\n      (\n        $json.created_utc ?? \n        $json.created ?? \n        (Date.now() / 1000)\n      ) * 1000\n    )\n  )\n  .toISOString()\n  .substring(0, 10)\n  + '/' +\n  ($json.title || '')\n    .toLowerCase()\n    .replace(/[^a-z0-9 -]/g, '')\n    .trim()\n    .replace(/\\s+/g, '-')\n    .replace(/-+/g, '-')\n  + '.' +\n  ($json.subreddit || 'reddit')\n}}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -208,
+        208
+      ],
+      "id": "3011d994-f23b-4042-a75e-1d0c56f409bd",
+      "name": "get_identity_reddit",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "stop-message",
+              "name": "stopMessage",
+              "value": "No new stories found in the last 10 days from this source. Stopping processing.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        0
+      ],
+      "id": "92d3356a-69d1-4155-b6cb-e87025d4d6c3",
+      "name": "stop_no_recent_reddit_items"
+    },
+    {
+      "parameters": {
+        "resource": "bucket",
+        "operation": "search",
+        "bucketName": "n8n-ai-news-stories",
+        "additionalFields": {
+          "prefix": "={{ $json.uploadFileName }}"
+        }
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        16,
+        192
+      ],
+      "id": "0037ee25-715e-4a43-bb2d-df29954b7623",
+      "name": "search_existing_resource-reddit",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "s3": {
+          "id": "WRnQEZaYQvFm8YY3",
+          "name": "Cloudflare R2 S3 Format Datalake"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fbf2844d-f77e-4c7f-a223-42b674d3668c",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        192
+      ],
+      "id": "847b9ba0-bb41-4b46-9be1-c1072e68a758",
+      "name": "skip_existing_resources-reddit"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "restore-upload-file-name",
+              "name": "uploadFileName",
+              "value": "={{ $('get_identity_reddit').item.json.uploadFileName || $json.uploadFileName || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "restore-title",
+              "name": "title",
+              "value": "={{ $('get_identity_reddit').item.json.title || $json.title || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "restore-url",
+              "name": "url",
+              "value": "={{ $('get_identity_reddit').item.json.url || $json.url || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "restore-source-name",
+              "name": "sourceName",
+              "value": "={{ $('get_identity_reddit').item.json.sourceName || $json.sourceName || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "restore-feed-url",
+              "name": "feedUrl",
+              "value": "={{ $('get_identity_reddit').item.json.feedUrl || $json.feedUrl || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "restore-published-timestamp",
+              "name": "publishedTimestamp",
+              "value": "={{ $('get_identity_reddit').item.json.publishedTimestamp || $json.publishedTimestamp || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        192
+      ],
+      "id": "48ecb00a-2b67-48b3-8cfa-3aceb0da9928",
+      "name": "restore_original_context-reddit"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $input.item.json.url }}",
+        "scrapeOptions": {
+          "options": {
+            "formats": {
+              "format": [
+                {}
+              ]
+            },
+            "headers": {}
+          }
+        },
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawl",
+      "typeVersion": 1,
+      "position": [
+        896,
+        208
+      ],
+      "id": "2a4d6d68-c753-4d07-bac5-aef2d63d4793",
+      "name": "get_url_content-reddit",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "rTqOqmBm7ntAnREG",
+          "name": "Firecrawl Node"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ecd02ccb-0790-44ab-8bb0-246881e35a20",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        192,
+        512
+      ],
+      "id": "6979e4b0-b7ec-423f-82db-4f1497f03320",
+      "name": "filter_scrape_errors-reddit"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "parse-content-id",
+              "name": "content",
+              "value": "={{ $json.data.markdown }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        352,
+        512
+      ],
+      "id": "767dcd48-7ee6-4d79-ab69-74941d67f4b8",
+      "name": "parse_markdown-reddit"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Given content fetched from a web page, analyze this content to determine if it is a full piece of content that would be considered relevent to our AI Newsletter which features stories, advancements, and other interesting happenings in the tech and AI space.\n\n- Job postings are not relevant content\n- Content centered around unrelated industries is not relevant\n- Only AI and AI Adjacent content should be considered relevant\n\n---\n{{ $json.content }}",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        560,
+        512
+      ],
+      "id": "c588ea05-898f-4015-b101-9e0e1f9c50f1",
+      "name": "evaluate_content-reddit"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "22197457-7f84-4504-a14f-a5346a80359f",
+              "leftValue": "={{ $json.output.is_relevant_content }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        512
+      ],
+      "id": "8df401f1-f823-4e07-9cea-c333d27cf3b3",
+      "name": "ensure_relevant-reddit"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"is_relevant_content\": {\n\t\t\t\"type\": \"boolean\",\n            \"description\": \"Indicator if the provided content is relevant piece of content to the AI industry.\"\n\t\t}\n\t}\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        624,
+        752
+      ],
+      "id": "e8d67433-1045-48de-99a3-6498dbf599a4",
+      "name": "is_relevant_content_parser-reddit"
+    },
+    {
+      "parameters": {
+        "text": "=You are given:\n\n1. **Content Website**: The domain hosting the content (e.g., `https://www.bloomberg.com/news/…`).  \n2. **Content Title and Body**: Text or markdown content extracted from a web page.  \n3. **Links Found on Content Page**: A list of hyperlinks that appear in or around the same article or page.\n\n## Your Task\n\n- Identify any **external source links** that are most relevant to the main topic of the content. It is possible there are NOT ANY good external source links.\n- **External** means the link must be on a domain *different* from the Content Website's domain.\n- **Relevance** means it must directly reference a primary source (e.g., a product announcement, study, press release, etc.) that underpins the main topic.\n- **Exclude** links that are:\n  - On the same domain as the Content Website\n  - Generic homepages, profile pages, or unrelated side links\n  - Not clearly connected to the main focus of the article\n  - To storefront pages like eCommerce sites, to bookstore pages, to direct product listings, or other place to order a product directly.\n  - To shopping websites like bookstores and other retail stores.\n- If one or more valid external links exist, return them in a single comma-separated string as `external_source_urls`.\n- If no external links meet these criteria, omit the `external_source_urls` field entirely.\n\n## Output Format\n\n- Return only the answer in plain text.\n- Either:\n  1. `external_source_urls: <comma-separated list of valid external links>`\n  2. Omit the field if no valid external links exist.\n\n\n## Other Details\nIt is critical that your source link is relevant to the main content and would be useful context to evaluate when writing a newsletter overview about this content targeted towards AI enthusiasts and people interested in the AI space.\n\n---\n\n### Example Scenario\n\nIf the article is focused on an AI breakthrough from OpenAI and there is an external link to an official OpenAI product announcement hosted on openai.com, include that link (since it is on a *different* domain and relevant to the main topic). If all links point to the same domain or are irrelevant, do not return any `external_source_urls`.\n\n---\nContent Website:\n{{ $('parse_markdown-reddit').item.json.data.metadata.url }}\n\n\nContent Title:\n{{ $('parse_markdown-reddit').item.json.data.metadata.title }}\n\nContent:\n{{ $('parse_markdown-reddit').item.json.content }}\n\nNote: Since link extraction is not available, identify external source URLs mentioned within the content text itself.",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "external_source_urls",
+              "description": "Optional comma-separated values list of urls that are external sources referenced on this piece of content. The url here should NOT be on the same domain as the url of the main content piece, it should be an external url meaning another website. Make sure there is NOT a trailing comma after the last value."
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "You are an expert extraction algorithm.\nOnly extract relevant information from the text.\nIf you do not know the value of an attribute asked to extract, you may omit the attribute's value."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        928
+      ],
+      "id": "2c15d6f1-b05e-4569-9aea-e8f46d1358c5",
+      "name": "try_extract_external_sources-reddit",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "forward-upload-file-name",
+              "name": "uploadFileName",
+              "value": "={{ $('get_identity_reddit').item.json.uploadFileName || $json.uploadFileName || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "parse-urls-id",
+              "name": "external_source_urls_clean",
+              "value": "={{ $json.output.external_source_urls ? $json.output.external_source_urls.replace(/\\?utm_[^,]*/g, '') : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "parse-urls-array-id",
+              "name": "external_source_urls_array",
+              "value": "={{ $json.output.external_source_urls ? $json.output.external_source_urls.split(',') : [] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        928
+      ],
+      "id": "45303348-a2b0-4c49-b963-7c723119fd48",
+      "name": "parse_external_urls-reddit"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "n8n-ai-news-stories",
+        "fileName": "={{ $input.item.json.uploadFileName + \".md\" }}",
+        "binaryData": false,
+        "fileContent": "={{ $('parse_markdown-reddit').item.json.content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        688
+      ],
+      "id": "a4b6d794-ca6e-4ce0-97c8-8d53ecd0622a",
+      "name": "upload_markdown-reddit",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "s3": {
+          "id": "WRnQEZaYQvFm8YY3",
+          "name": "Cloudflare R2 S3 Format Datalake"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-urls-exist",
+              "leftValue": "={{ $('parse_external_urls-reddit').item.json.external_source_urls_array.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        1184
+      ],
+      "id": "9e406399-02a4-49d1-bd0f-448e16b59c7c",
+      "name": "filter_has_urls-reddit"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "n8n-ai-news-stories",
+        "fileName": "={{ $input.item.json.uploadFileName + \".urls.json\" }}",
+        "binaryData": false,
+        "fileContent": "={{ JSON.stringify({\n  \"title\": \"URLs: \" + $input.item.json.title,\n  \"source_url\": $input.item.json.url,\n  \"external_source_urls\": $('parse_external_urls-reddit').item.json.external_source_urls_array,\n  \"timestamp\": $input.item.json.publishedTimestamp,\n  \"source_name\": $input.item.json.sourceName,\n  \"feed_url\": $input.item.json.feedUrl\n}, null, 2) }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        1184
+      ],
+      "id": "42961ee0-1036-473f-9835-c796f9fc020c",
+      "name": "upload_urls-reddit",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "s3": {
+          "id": "WRnQEZaYQvFm8YY3",
+          "name": "Cloudflare R2 S3 Format Datalake"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        1200
+      ],
+      "id": "d1c67cb6-54b2-4c97-bae3-6e24e68ca87c",
+      "name": "gpt-5-mini-reddit",
+      "credentials": {
+        "openAiApi": {
+          "id": "0h9ABSgX9AueTiCT",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://rss.app/feeds/v1.1/F3rBf24jLxG6mNoJ.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        544
+      ],
+      "id": "e4d52adb-bbd6-4bf2-807b-97b4e76ce153",
+      "name": "reddit_artifcial-intelligence"
+    },
+    {
+      "parameters": {
+        "url": "https://rss.app/feeds/v1.1/upLgfm9lv7RXwzes.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        192
+      ],
+      "id": "cac6bbdb-e93d-4e17-8fc7-fdea901f537c",
+      "name": "reddit_artificial"
+    },
+    {
+      "parameters": {
+        "url": "https://rss.app/feeds/v1.1/1LDBacY8BC2qJaZh.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        368
+      ],
+      "id": "8c7035ed-4bdb-424c-aa5c-e0b5816d88ee",
+      "name": "reddit_open_ai"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        544
+      ],
+      "id": "a5d4a01c-c246-4d54-a684-a96f1e1f735a",
+      "name": "split_reddit_artificial_items"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        368
+      ],
+      "id": "e251b87b-b1a2-4ae0-9965-4c1339b3deb6",
+      "name": "split_reddit_open_ai_items"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        192
+      ],
+      "id": "8d5ffe67-03fa-42a4-9a7f-93fe676fb21f",
+      "name": "split_reddit_artificial_items1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1328,
+        192
+      ],
+      "id": "b5aff5cd-2d61-47c1-8321-a4c69e85e6b1",
+      "name": "schedule_5_am"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5,
+              "triggerAtMinute": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1328,
+        368
+      ],
+      "id": "12467d1a-f862-4ddf-a5b7-dd53a38a2017",
+      "name": "schedule_5_10_am"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5,
+              "triggerAtMinute": 20
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1328,
+        544
+      ],
+      "id": "5f3a9f87-eef3-468e-839d-d4938cdf02d0",
+      "name": "schedule_5_20_am"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "subreddit": "openai",
+        "postId": "={{ $json.url.match(/comments\\/([^/]+)/)[1] }}"
+      },
+      "type": "n8n-nodes-base.reddit",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        368
+      ],
+      "id": "13290669-d653-4c71-85a3-45ba9eccc28d",
+      "name": "get_posts_open_ai",
+      "credentials": {
+        "redditOAuth2Api": {
+          "id": "Qbblv31PMg4lH2Xu",
+          "name": "Reddit"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "subreddit": "artificial",
+        "postId": "={{ $json.url.match(/comments\\/([^/]+)/)[1] }}"
+      },
+      "type": "n8n-nodes-base.reddit",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        192
+      ],
+      "id": "17ac0d37-7e46-402c-ae8e-927a475509d4",
+      "name": "get_posts_artificial",
+      "credentials": {
+        "redditOAuth2Api": {
+          "id": "Qbblv31PMg4lH2Xu",
+          "name": "Reddit"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "subreddit": "ArtificialIntelligence",
+        "postId": "={{ $json.url.match(/comments\\/([^/]+)/)[1] }}"
+      },
+      "type": "n8n-nodes-base.reddit",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        544
+      ],
+      "id": "d4e812a2-9fc0-4ad9-9c40-9f089f779dd1",
+      "name": "Get a post",
+      "credentials": {
+        "redditOAuth2Api": {
+          "id": "Qbblv31PMg4lH2Xu",
+          "name": "Reddit"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6b4eaafe-c584-43cc-ba98-eef5328c6b2b",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "64883317-4cda-42ba-9f35-5e2f6c49a45f",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e97b1767-7c4a-4d2e-89cd-ae3a75e8b11a",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "youtube.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "edf3496c-8d9d-4a23-b6c2-362030de633a",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "youtu.be",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "2eaba1c4-e5f1-4ca7-a1f4-2f242190fdd9",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "x.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "700e822c-d09c-4c63-be58-a102302aadb0",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "github.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "47d60da5-67aa-46cf-a87a-f37e25dbb4da",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "i.redd.it",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "85c0941d-3ce0-4067-85ea-db038d9485a9",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "v.redd.it",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -528,
+        368
+      ],
+      "id": "d17702ee-da08-445d-8937-05bdb86da6c7",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6b4eaafe-c584-43cc-ba98-eef5328c6b2b",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "64883317-4cda-42ba-9f35-5e2f6c49a45f",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e97b1767-7c4a-4d2e-89cd-ae3a75e8b11a",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "youtube.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "edf3496c-8d9d-4a23-b6c2-362030de633a",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "youtu.be",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "2eaba1c4-e5f1-4ca7-a1f4-2f242190fdd9",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "x.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "700e822c-d09c-4c63-be58-a102302aadb0",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "github.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "47d60da5-67aa-46cf-a87a-f37e25dbb4da",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "i.redd.it",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "85c0941d-3ce0-4067-85ea-db038d9485a9",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "v.redd.it",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -528,
+        192
+      ],
+      "id": "58f47769-a1a3-4583-bdd9-6242b0c9ff34",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6b4eaafe-c584-43cc-ba98-eef5328c6b2b",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "64883317-4cda-42ba-9f35-5e2f6c49a45f",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e97b1767-7c4a-4d2e-89cd-ae3a75e8b11a",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "youtube.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "edf3496c-8d9d-4a23-b6c2-362030de633a",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "youtu.be",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "2eaba1c4-e5f1-4ca7-a1f4-2f242190fdd9",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "x.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "700e822c-d09c-4c63-be58-a102302aadb0",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "github.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "47d60da5-67aa-46cf-a87a-f37e25dbb4da",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "i.redd.it",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "85c0941d-3ce0-4067-85ea-db038d9485a9",
+              "leftValue": "={{ $json.url_overridden_by_dest || $json.url }}",
+              "rightValue": "v.redd.it",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -528,
+        544
+      ],
+      "id": "821072db-d35a-408f-84c8-aa20f5b374c0",
+      "name": "Filter2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "date-within-10-days",
+              "leftValue": "={{ Number(new Date(($json.publishedTimestamp || '').trim()).getTime()) }}\n\n",
+              "rightValue": "={{ Date.now() - (10 * 24 * 60 * 60 * 1000) }}\n",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "141852cb-1654-42ce-8bfc-6f629d429bf5",
+      "name": "filter_reddit_recent_items"
+    },
+    {
+      "parameters": {
+        "batchSize": 20,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        656,
+        192
+      ],
+      "id": "400a52a3-fd01-480b-973f-8a403b7f7c27",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 5
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        208
+      ],
+      "id": "440e8c80-b8c4-494b-bf1c-d750caaffa3d",
+      "name": "Wait",
+      "webhookId": "2e520157-1f5f-4177-ac7b-013a40185cb0"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "get_identity_reddit": {
+      "main": [
+        [
+          {
+            "node": "filter_reddit_recent_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_existing_resource-reddit": {
+      "main": [
+        [
+          {
+            "node": "skip_existing_resources-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "skip_existing_resources-reddit": {
+      "main": [
+        [
+          {
+            "node": "restore_original_context-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "restore_original_context-reddit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_url_content-reddit": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter_scrape_errors-reddit": {
+      "main": [
+        [
+          {
+            "node": "parse_markdown-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_markdown-reddit": {
+      "main": [
+        [
+          {
+            "node": "evaluate_content-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "evaluate_content-reddit": {
+      "main": [
+        [
+          {
+            "node": "ensure_relevant-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ensure_relevant-reddit": {
+      "main": [
+        [
+          {
+            "node": "try_extract_external_sources-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "try_extract_external_sources-reddit": {
+      "main": [
+        [
+          {
+            "node": "parse_external_urls-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_external_urls-reddit": {
+      "main": [
+        [
+          {
+            "node": "upload_markdown-reddit",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "filter_has_urls-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter_has_urls-reddit": {
+      "main": [
+        [
+          {
+            "node": "upload_urls-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is_relevant_content_parser-reddit": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "evaluate_content-reddit",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-5-mini-reddit": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "try_extract_external_sources-reddit",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "evaluate_content-reddit",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reddit_artificial": {
+      "main": [
+        [
+          {
+            "node": "split_reddit_artificial_items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reddit_open_ai": {
+      "main": [
+        [
+          {
+            "node": "split_reddit_open_ai_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reddit_artifcial-intelligence": {
+      "main": [
+        [
+          {
+            "node": "split_reddit_artificial_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "schedule_5_am": {
+      "main": [
+        [
+          {
+            "node": "reddit_artificial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "schedule_5_10_am": {
+      "main": [
+        [
+          {
+            "node": "reddit_open_ai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "schedule_5_20_am": {
+      "main": [
+        [
+          {
+            "node": "reddit_artifcial-intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split_reddit_artificial_items1": {
+      "main": [
+        [
+          {
+            "node": "get_posts_artificial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split_reddit_open_ai_items": {
+      "main": [
+        [
+          {
+            "node": "get_posts_open_ai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split_reddit_artificial_items": {
+      "main": [
+        [
+          {
+            "node": "Get a post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_posts_artificial": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a post": {
+      "main": [
+        [
+          {
+            "node": "Filter2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_posts_open_ai": {
+      "main": [
+        [
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "get_identity_reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "get_identity_reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter2": {
+      "main": [
+        [
+          {
+            "node": "get_identity_reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter_reddit_recent_items": {
+      "main": [
+        [
+          {
+            "node": "search_existing_resource-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "stop_no_recent_reddit_items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "get_url_content-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "filter_scrape_errors-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9285ab52-074d-49dd-8ed0-d8554c787fad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d735d77f21fd4aef6b73e3673b1ecc97bb1c1f558cf83cdb9413cefd83cbd75c"
+  },
+  "id": "lf0Dl1yESTvSNQzO",
+  "tags": [
+    {
+      "createdAt": "2025-09-19T22:34:09.163Z",
+      "updatedAt": "2025-09-19T22:34:09.163Z",
+      "id": "a58pFV5Wcl0MIzkr",
+      "name": "Newsletter"
+    },
+    {
+      "createdAt": "2025-09-26T18:25:27.485Z",
+      "updatedAt": "2025-09-26T18:25:27.485Z",
+      "id": "aHlhhFgEyGunDRhK",
+      "name": "Reddit"
+    }
+  ]
+}
