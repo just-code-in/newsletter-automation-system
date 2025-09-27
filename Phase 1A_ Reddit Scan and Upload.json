@@ -234,6 +234,9 @@
       ],
       "id": "2a4d6d68-c753-4d07-bac5-aef2d63d4793",
       "name": "get_url_content-reddit",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 60000,
       "credentials": {
         "firecrawlApi": {
           "id": "rTqOqmBm7ntAnREG",
@@ -1073,7 +1076,7 @@
     },
     {
       "parameters": {
-        "batchSize": 20,
+        "batchSize": 10,
         "options": {}
       },
       "type": "n8n-nodes-base.splitInBatches",
@@ -1087,7 +1090,7 @@
     },
     {
       "parameters": {
-        "amount": 5
+        "amount": 15
       },
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
