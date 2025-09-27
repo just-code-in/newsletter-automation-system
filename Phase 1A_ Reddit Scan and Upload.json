@@ -1457,6 +1457,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "filter_scrape_errors-reddit",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1464,7 +1471,7 @@
       "main": [
         [
           {
-            "node": "filter_scrape_errors-reddit",
+            "node": "Loop Over Items",
             "type": "main",
             "index": 0
           }
