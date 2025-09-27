@@ -1101,6 +1101,103 @@
       "id": "440e8c80-b8c4-494b-bf1c-d750caaffa3d",
       "name": "Wait",
       "webhookId": "2e520157-1f5f-4177-ac7b-013a40185cb0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "error-exists",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        720
+      ],
+      "id": "filter-failed-scrapes",
+      "name": "filter_failed_scrapes"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $input.item.json.url }}",
+        "prompt": "Extract the main article content from this webpage, focusing on the primary text content and removing navigation, ads, and other non-essential elements.",
+        "output_format": "markdown"
+      },
+      "type": "@scrapegraph-ai/n8n-nodes-scrapegraphai.scrapegraphai",
+      "typeVersion": 1,
+      "position": [
+        600,
+        720
+      ],
+      "id": "backup-scraper-scrapegraph",
+      "name": "backup_scraper_scrapegraph",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 15000,
+      "credentials": {
+        "scrapegraphaiApi": {
+          "id": "SCRAPEGRAPH_CREDENTIAL_ID",
+          "name": "ScrapeGraph AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "normalize-scrapegraph-output",
+              "name": "data",
+              "value": "={{ { markdown: $json.result || $json.content || $json.text || '' } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        720
+      ],
+      "id": "normalize-scrapegraph-output",
+      "name": "normalize_scrapegraph_output"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        720
+      ],
+      "id": "wait-after-scrapegraph",
+      "name": "wait_after_scrapegraph",
+      "webhookId": "backup-wait-webhook-id"
     }
   ],
   "pinData": {},
@@ -1463,7 +1560,7 @@
         ],
         [
           {
-            "node": "filter_scrape_errors-reddit",
+            "node": "filter_failed_scrapes",
             "type": "main",
             "index": 0
           }
@@ -1475,6 +1572,57 @@
         [
           {
             "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter_failed_scrapes": {
+      "main": [
+        [
+          {
+            "node": "backup_scraper_scrapegraph",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "filter_scrape_errors-reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "backup_scraper_scrapegraph": {
+      "main": [
+        [
+          {
+            "node": "normalize_scrapegraph_output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalize_scrapegraph_output": {
+      "main": [
+        [
+          {
+            "node": "wait_after_scrapegraph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait_after_scrapegraph": {
+      "main": [
+        [
+          {
+            "node": "parse_markdown-reddit",
             "type": "main",
             "index": 0
           }
