@@ -45,7 +45,7 @@ This system implements a complete AI newsletter automation pipeline with multipl
 
 ### **Prerequisites**
 - n8n automation platform
-- Cloudflare R2 storage bucket (`n8n-ai-news-stories`)
+- Cloudflare R2 storage bucket for content storage
 - OpenAI API key (GPT-5-mini)
 - Firecrawl API for web scraping
 - Reddit OAuth2 API credentials
@@ -60,14 +60,15 @@ This system implements a complete AI newsletter automation pipeline with multipl
    ```
 
 2. **Configure R2 Storage**
-   - Bucket name: `n8n-ai-news-stories`
-   - Credential ID: `WRnQEZaYQvFm8YY3` (Cloudflare R2 S3 Format Datalake)
+   - Set up your Cloudflare R2 bucket for story storage
+   - Configure S3-compatible credentials in n8n
 
 3. **Set Up Credentials**
-   - OpenAI API: `0h9ABSgX9AueTiCT`
-   - Reddit OAuth2: `Qbblv31PMg4lH2Xu`
-   - Gmail OAuth2: `DbgMOOrFimJRx5qQ`
-   - Firecrawl API: `rTqOqmBm7ntAnREG`
+   - **OpenAI API**: Add your OpenAI API key for GPT-5-mini access
+   - **Reddit OAuth2**: Configure Reddit API credentials for community scraping
+   - **Gmail OAuth2**: Set up Gmail credentials for workflow notifications
+   - **Firecrawl API**: Add Firecrawl API key for web content extraction
+   - **Cloudflare R2**: Configure S3-compatible R2 storage credentials
 
 4. **Schedule Configuration**
    - Phase 1A RSS: Daily 5:00-6:15am (staggered 15min intervals)
@@ -203,7 +204,7 @@ This is a production newsletter automation system. For modifications:
 
 ## 📄 License
 
-Private repository for newsletter automation system.
+Open source newsletter automation system. Please review credential requirements and configure with your own API keys before use.
 
 ## 📞 Support
 
