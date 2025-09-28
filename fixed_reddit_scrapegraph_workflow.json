@@ -242,9 +242,12 @@
         "resource": "scrape",
         "websiteUrl": "={{ $json.url }}",
         "additionalFields": {
-          "prompt": "Extract the main article content, ignoring navigation, ads, and sidebar content. Focus on the primary text content of the article.",
-          "tags": ["article", "main", "content", "p", "h1", "h2", "h3", "h4", "h5", "h6"],
-          "onlyMainContent": true
+          "prompt": "Extract ONLY the main text content from this Reddit post. Return only the post title and body text without any HTML, metadata, navigation, ads, or other webpage elements. Focus on the actual Reddit post content that a user would read.",
+          "output_format": "markdown",
+          "onlyMainContent": true,
+          "include_html": false,
+          "include_metadata": false,
+          "include_raw_content": false
         }
       },
       "type": "@scrapegraph-ai/n8n-nodes-scrapegraphai.scrapegraphai",
@@ -285,7 +288,7 @@
             },
             {
               "id": "check-has-result",
-              "leftValue": "={{ $json.result || $json.content || $json.text }}",
+              "leftValue": "={{ $json.result || $json.content || $json.text || $json.markdown || $json.extracted_content }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -311,13 +314,13 @@
             {
               "id": "parse-content-id",
               "name": "content",
-              "value": "={{ $json.result || $json.content || $json.text || '' }}",
+              "value": "={{ $json.result || $json.content || $json.text || $json.markdown || $json.extracted_content || '' }}",
               "type": "string"
             },
             {
               "id": "normalize-data-structure",
               "name": "data",
-              "value": "={{ { markdown: $json.result || $json.content || $json.text || '' } }}",
+              "value": "={{ { markdown: $json.result || $json.content || $json.text || $json.markdown || $json.extracted_content || '' } }}",
               "type": "object"
             }
           ]
@@ -1034,6 +1037,33 @@
       "id": "post_scrape_wait",
       "name": "Post-Scrape Wait",
       "webhookId": "post-scrape-wait-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "clean-content",
+              "name": "content",
+              "value": "={{ $json.content ? $json.content.replace(/<[^>]*>/g, '').replace(/\\n\\n+/g, '\\n\\n').replace(/^\\s+|\\s+$/g, '').substring(0, 10000) : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "update-data-structure",
+              "name": "data",
+              "value": "={{ { markdown: $json.content ? $json.content.replace(/<[^>]*>/g, '').replace(/\\n\\n+/g, '\\n\\n').replace(/^\\s+|\\s+$/g, '').substring(0, 10000) : '' } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1584, 320],
+      "id": "clean_content_filter",
+      "name": "clean_content_filter"
     }
   ],
   "connections": {
@@ -1147,7 +1177,7 @@
       "main": [
         [
           {
-            "node": "evaluate_content-reddit",
+            "node": "clean_content_filter",
             "type": "main",
             "index": 0
           }
@@ -1429,6 +1459,17 @@
         [
           {
             "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean_content_filter": {
+      "main": [
+        [
+          {
+            "node": "evaluate_content-reddit",
             "type": "main",
             "index": 0
           }
